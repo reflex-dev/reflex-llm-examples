@@ -21,10 +21,17 @@ cd reflex-llm-examples/chat_with_deepseek_r1_locally
 ```  
 
 ### 2. Install Dependencies  
-Install the required dependencies:  
+Install `uv` and the required dependencies:  
 ```bash  
-pip install -r requirements.txt  
+curl -LsSf https://astral.sh/uv/install.sh | sh
+exec bash
+uv venv && source .venv/bin/activate && uv pip sync pyproject.toml
 ```  
+
+You might have to install `unzip` as well.
+```bash
+sudo apt-get install unzip -y
+```
 
 ### 3. Pull and Run DeepSeek-r1 Using Ollama  
 Download and set up the DeepSeek-r1 model locally:  

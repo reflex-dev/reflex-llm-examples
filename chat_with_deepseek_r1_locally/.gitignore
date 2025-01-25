@@ -3,3 +3,4 @@ __pycache__/
 .web
 *.py[cod]
 assets/external/
+.venv
