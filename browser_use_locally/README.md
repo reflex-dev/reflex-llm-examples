@@ -64,5 +64,4 @@ Here’s an example of a task you can provide:
 ```
 
 Or, feel free to create your own custom task descriptions for a wide range of automation needs!
-
 --
