@@ -1,0 +1,5 @@
+reflex>=0.6.7
+ollama==0.4.5
+llama_index
+llama-index-embeddings-huggingface
+llama-index-llms-ollama
