@@ -17,7 +17,7 @@ Chat with PDF is an LLM app that utilizes **Retrieval Augmented Generation (RAG)
 Clone the GitHub repository to your local machine:  
 ```bash  
 git clone https://github.com/reflex-dev/reflex-llm-examples.git  
-cd reflex-llm-examples/chat_with_deepseek_r1_locally
+cd reflex-llm-examples/chat_with_deepseek_r1_locally/deepseek_r1_rag
 ```  
 
 ### 2. Install Dependencies  
