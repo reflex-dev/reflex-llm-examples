@@ -1,0 +1,10 @@
+agno
+google-generativeai
+reflex
+bs4
+duckduckgo-search
+qdrant-client
+pgvector
+psycopg[binary]
+pypdf
+sqlalchemy
