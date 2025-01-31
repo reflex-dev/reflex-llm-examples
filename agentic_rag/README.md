@@ -35,21 +35,50 @@ Go to [Google AI Studio](https://aistudio.google.com/apikey), get your API Key a
    export GOOGLE_API_KEY="your-api-key-here"  
    ```  
 
-### 4. Run PgVector  
+### 4. Set Up PgVector  
 The app uses **PgVector** for vector storage and retrieval. Follow these steps to set it up:  
 
-Install Docker Desktop first, then run:  
-```bash  
-docker run -d \
-  -e POSTGRES_DB=ai \
-  -e POSTGRES_USER=ai \
-  -e POSTGRES_PASSWORD=ai \
-  -e PGDATA=/var/lib/postgresql/data/pgdata \
-  -v pgvolume:/var/lib/postgresql/data \
-  -p 5532:5432 \
-  --name pgvector \
-  agnohq/pgvector:16
-```  
+1. **Install Docker Desktop:** Ensure Docker Desktop is installed on your machine.  
+2. **Run the PgVector Docker Container:** Use the following command to start the PgVector container:  
+   ```bash  
+   docker run -d \
+     -e POSTGRES_DB=ai \
+     -e POSTGRES_USER=ai \
+     -e POSTGRES_PASSWORD=ai \
+     -e PGDATA=/var/lib/postgresql/data/pgdata \
+     -v pgvolume:/var/lib/postgresql/data \
+     -p 5532:5432 \
+     --name pgvector \
+     agnohq/pgvector:16
+   ```  
+
+3. **Verify the Container is Running:**  
+   Run the following command to confirm that the PgVector container is running:  
+   ```bash  
+   docker ps  
+   ```  
+   You should see an entry for `pgvector` with port `5532` listed.  
+
+4. **Connect to the Database:**  
+   Access the PostgreSQL shell inside the container with this command:  
+   ```bash  
+   docker exec -it pgvector psql -U ai -d ai  
+   ```  
+
+5. **Create a New Table with Vector(768):**  
+   If you're setting up a new table with an embedding column of dimension 768, run the following SQL command:  
+   ```sql  
+   CREATE TABLE pdf_documents_v2 (
+     id character varying PRIMARY KEY,
+     name character varying,
+     meta_data jsonb DEFAULT '{}'::jsonb,
+     filters jsonb DEFAULT '{}'::jsonb,
+     content text,
+     embedding vector(768),  -- Embedding column with 768 dimensions
+     usage jsonb DEFAULT '{}'::jsonb,
+     content_hash VARCHAR
+   );
+   ```  
 
 ### 5. Run the Reflex App  
 Start the application to begin interacting with your PDF:  
@@ -76,7 +105,8 @@ reflex run
 
 ## Troubleshooting  
 - **Gemini API Key Not Set:** Ensure the `GOOGLE_API_KEY` environment variable is set correctly.  
-- **PgVector Not Running:** Verify that the PgVector Docker container is running and accessible on port `5532`.
+- **PgVector Not Running:** Verify that the PgVector Docker container is running and accessible on port `5532`.  
+
 ---
 
 ## Contributing  
