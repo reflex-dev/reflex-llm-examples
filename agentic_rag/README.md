@@ -66,7 +66,7 @@ The app uses **PgVector** for vector storage and retrieval. Follow these steps t
    ```  
 
 5. **Create a New Table with Vector(768):**  
-   If you're setting up a new table with an embedding column of dimension 768, run the following SQL command:  
+   Setup up a new table with an embedding column of dimension 768, run the following SQL command:  
    ```sql  
    CREATE TABLE pdf_documents_v2 (
      id character varying PRIMARY KEY,
