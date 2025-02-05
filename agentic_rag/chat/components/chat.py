@@ -28,7 +28,7 @@ from typing import Optional
 db_url = "postgresql+psycopg://ai:ai@localhost:5532/ai"
 
 def get_agentic_rag_agent(
-    model_id: str = "gemini-2.0-flash-exp",
+    model_id: str = "gemini-2.0-flash",
     user_id: Optional[str] = None,
     session_id: Optional[str] = None,
     debug_mode: bool = True,
@@ -204,7 +204,7 @@ class State(rx.State):
                 self._session_id = f"session_{int(time.time())}"
             
             return get_agentic_rag_agent(
-                model_id="gemini-2.0-flash-exp",
+                model_id="gemini-2.0-flash",
                 session_id=self._session_id,
                 user_id=None,
                 debug_mode=True
@@ -268,7 +268,7 @@ class State(rx.State):
     
     @rx.event(background=True)
     async def process_question(self, form_data: dict):
-        """Process a question using a fresh agent instance"""
+        """Process a question using streaming responses"""
         if self.processing or not form_data.get("question"):
             return
 
@@ -281,21 +281,52 @@ class State(rx.State):
             await asyncio.sleep(0.1)
 
         try:
-            # Create fresh agent that will access the same vector store
             agent = self._create_agent()
-            response = await asyncio.to_thread(
-                agent.run,
-                question
-            )
-            answer_content = response.content if response else "No response received"
+            queue = asyncio.Queue()
+            loop = asyncio.get_running_loop()
+
+            def run_stream():
+                """Run synchronous stream in a thread"""
+                try:
+                    stream_response = agent.run(question, stream=True)
+                    for chunk in stream_response:
+                        if chunk.content:
+                            asyncio.run_coroutine_threadsafe(queue.put(chunk.content), loop)
+                    asyncio.run_coroutine_threadsafe(queue.put(None), loop)
+                except Exception as e:
+                    error_msg = f"Error: {str(e)}"
+                    asyncio.run_coroutine_threadsafe(queue.put(error_msg), loop)
+
+            # Start streaming in background thread
+            loop.run_in_executor(None, run_stream)
+
+            answer_content = ""
+            while True:
+                chunk = await queue.get()
+                if chunk is None:  # End of stream
+                    break
+                if isinstance(chunk, str) and chunk.startswith("Error: "):
+                    answer_content = chunk
+                    break
+                
+                answer_content += chunk
+                async with self:
+                    self.chats[self.current_chat][-1].answer = answer_content
+                    self.chats = self.chats  # Trigger refresh
+                    yield
+
         except Exception as e:
             answer_content = f"Error processing question: {str(e)}"
+            async with self:
+                self.chats[self.current_chat][-1].answer = answer_content
+                self.chats = self.chats
+                yield
 
-        async with self:
-            self.chats[self.current_chat][-1].answer = answer_content
-            self.chats = self.chats
-            self.processing = False
-            yield
+        finally:
+            async with self:
+                self.processing = False
+                yield
+        
 
     def clear_knowledge_base(self):
         """Clear knowledge base and reset state"""

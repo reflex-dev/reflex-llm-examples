@@ -8,7 +8,7 @@ def index() -> rx.Component:
         rx.box(
             rx.vstack(
                 rx.hstack(
-                    rx.heading("Agentic RAG 🔥"),
+                    rx.heading("Agentic RAG using Gemini 2.0 Flash 🔥"),
                     rx.button(
                         "New Chat",
                         on_click=State.create_new_chat,
