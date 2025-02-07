@@ -1,0 +1,6 @@
+agno
+reflex
+llama_index
+llama-index-llms-ollama
+llama-index-embeddings-huggingface
+llama-index-readers-docling
