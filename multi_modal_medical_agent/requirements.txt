@@ -1,0 +1,4 @@
+agno
+google-generativeai
+reflex
+duckduckgo-search
