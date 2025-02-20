@@ -1,10 +1,9 @@
 import reflex as rx
-import google.generativeai as genai
-from phi.agent import Agent
-from phi.model.google import Gemini
-from phi.tools.duckduckgo import DuckDuckGo
+from google import genai
 import time
 import asyncio
+from typing import List
+import traceback
 
 
 class State(rx.State):
@@ -16,9 +15,11 @@ class State(rx.State):
     video: str = ""
     question: str = ""
 
+    @rx.event
     async def handle_upload(self, files: list[rx.UploadFile]):
         """Handle video file upload."""
         if not files:
+            self.upload_status = "Please select a video file."
             return
             
         try:
@@ -41,127 +42,146 @@ class State(rx.State):
 
     @rx.event(background=True)        
     async def analyze_video(self):
-        """Process video and answer question using AI agent."""
+        """Process video and answer question using AI."""
         if not self.question:
             async with self:
                 self.result = "Please enter your question."
                 return
+
+        if not self.video:
+            async with self:
+                self.result = "Please upload a video first."
+                return
+
         async with self:
             self.processing = True
+            self.result = "Analyzing Video..."
             yield
             await asyncio.sleep(1)
             
         try:
-            agent = Agent(
-                name="Multimodal Video Analyst",
-                model=Gemini(id="gemini-2.0-flash-exp"),
-                tools=[DuckDuckGo()],
-                markdown=True,
-            )
+            client = genai.Client()
             
-            video_file = genai.upload_file(str(self.video))
-            while video_file.state.name == "PROCESSING":
+            video_file = client.files.upload(file=str(self.video))
+            while video_file.state == "PROCESSING":
                 await asyncio.sleep(2)
                 # time.sleep(2)
-                video_file = genai.get_file(video_file.name)
+                video_file = client.files.get(name=video_file.name)
                 
-            prompt = f"""
-            First analyze this video and then answer the following question using both
-            the video analysis and web research: {self.question}
-            Provide a comprehensive response focusing on practical, actionable information.
-            """
+            response = client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=[
+                    video_file,
+                    "Describe this video.",
+                ])            
             
-            result = agent.run(prompt, videos=[video_file])
 
             async with self:
-                self.result = result.content
+                self.result = response.text
                 self.processing = False
             
         except Exception as e:
             async with self:
+                full_error = traceback.format_exc()
                 self.processing = False
                 self.result = f"An error occurred: {str(e)}"
 
-    
-color = "rgb(107,99,246)"
 
-def index():
-    return rx.container(
-        rx.vstack(
-            # Header section
-            rx.heading("Multimodal AI Agent 🕵️‍♀️ 💬", size="8", mb="6"),
+def index() -> rx.Component:
+    return rx.el.div(
+        rx.el.div(
+            # Header section with gradient background
+            rx.el.div(
+                rx.el.h1(
+                    "Multimodal AI Agent 🕵️‍♀️ 💬",
+                    class_name="text-5xl font-bold text-white mb-4"
+                ),
+                class_name="w-full p-12 bg-gradient-to-r from-blue-600 to-blue-800 rounded-lg shadow-lg mb-8 text-center"
+            ),
             
             # Upload section
-            rx.vstack(
+            rx.el.div(
                 rx.upload(
-                    rx.vstack(
-                        rx.button(
+                    rx.el.div(
+                        rx.el.button(
                             "Select a Video File",
-                            color=color,
-                            bg="white",
-                            border=f"1px solid {color}"
+                            class_name="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold border-2 border-blue-600 hover:bg-blue-50 transition-colors"
                         ),
-                        rx.text("Drag and drop or click to select"),
+                        rx.el.p(
+                            "Drag and drop or click to select",
+                            class_name="text-gray-500 mt-2"
+                        ),
+                        class_name="text-center"
                     ),
                     accept={".mp4", ".mov", ".avi"},
                     max_files=1,
-                    border="1px dashed",
-                    padding="20px",
+                    class_name="border-2 border-dashed border-gray-300 rounded-lg p-8 bg-gray-50 hover:bg-gray-100 transition-colors",
                     id="upload1"
                 ),
                 rx.cond(
-                        rx.selected_files("upload1"),
-                        rx.text(rx.selected_files("upload1")[0]),
-                        rx.text(""),
+                    rx.selected_files("upload1"),
+                    rx.el.p(
+                        rx.selected_files("upload1")[0],
+                        class_name="text-gray-600 mt-2"
                     ),
-                rx.button(
-                    "Upload",
-                    on_click=State.handle_upload(rx.upload_files(upload_id="upload1"))
+                    rx.el.p("", class_name="mt-2"),
                 ),
-                rx.text(State.upload_status),
-                spacing="4",
+                rx.el.button(
+                    "Upload",
+                    on_click=State.handle_upload(rx.upload_files(upload_id="upload1")),
+                    class_name="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors mt-4"
+                ),
+                rx.el.p(
+                    State.upload_status,
+                    class_name="text-gray-600 mt-2"
+                ),
+                class_name="mb-8 p-6 bg-white rounded-lg shadow-lg"
             ),
             
             # Video and Analysis section
             rx.cond(
                 State.video_filename != "",
-                rx.vstack(
-                    rx.video(
-                        url=rx.get_upload_url(State.video_filename),
-                        width="50%",
-                        controls=True,
+                rx.el.div(
+                    rx.el.div(
+                        rx.video(
+                            url=rx.get_upload_url(State.video_filename),
+                            controls=True,
+                            class_name="w-full rounded-lg shadow-lg"
+                        ),
+                        class_name="mb-6"
                     ),
-                    rx.text_area(
-                        placeholder="Ask any question related to the video - the AI Agent will analyze it and search the web if needed",
+                    rx.el.textarea(
+                        placeholder="Ask any question related to the video - the AI Agent will analyze it",
                         value=State.question,
                         on_change=State.set_question,
-                        width="600px",
-                        size="2",
+                        class_name="w-full p-4 border-2 border-gray-300 rounded-lg focus:border-blue-600 focus:ring-1 focus:ring-blue-600 h-32 resize-none"
                     ),
-                    rx.button(
+                    rx.el.button(
                         "Analyze & Research",
                         on_click=State.analyze_video,
                         loading=State.processing,
+                        class_name="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors mt-4"
                     ),
                     rx.cond(
                         State.result != "",
-                        rx.vstack(
-                            rx.heading("🤖 Agent Response", size="4"),
-                            rx.markdown(State.result),
+                        rx.el.div(
+                            rx.el.h2(
+                                "🤖 Agent Response",
+                                class_name="text-2xl font-bold text-gray-800 mb-4"
+                            ),
+                            rx.markdown(
+                                State.result,
+                                class_name="prose prose-blue max-w-none"
+                            ),
+                            class_name="mt-8 p-6 bg-white rounded-lg shadow-lg"
                         ),
                     ),
-                    width="100%",
-                    spacing="4",
+                    class_name="space-y-6"
                 ),
             ),
-            width="100%",
-            max_width="800px",
-            spacing="6",
-            padding="4",
+            class_name="max-w-3xl mx-auto px-4"
         ),
-        max_width="600px",
-        margin="auto",
-        padding="40px"
+        class_name="min-h-screen bg-gray-50 py-12"
     )
 
 
