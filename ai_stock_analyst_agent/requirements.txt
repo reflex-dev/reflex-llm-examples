@@ -3,3 +3,4 @@ google-generativeai
 reflex
 duckduckgo-search
 yfinance
+google-genai
