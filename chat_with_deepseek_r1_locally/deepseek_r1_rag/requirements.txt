@@ -1,4 +1,4 @@
-reflex>=0.6.7
+reflex>=0.7.11
 ollama==0.4.5
 llama_index
 llama-index-embeddings-huggingface

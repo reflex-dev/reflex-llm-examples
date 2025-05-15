@@ -2,4 +2,4 @@ browser-use==0.1.27
 langchain-ollama==0.2.2
 ollama==0.4.7
 playwright==1.49.1
-reflex==0.6.8
+reflex==0.7.11
