@@ -1,5 +1,5 @@
 import reflex as rx
-from google import genai
+import google.generativeai as genai
 import time
 import asyncio
 from typing import List
