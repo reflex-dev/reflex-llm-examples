@@ -1,0 +1,43 @@
+name: Check Export
+
+env:
+  TELEMETRY_ENABLED: false
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  find-folders:
+    runs-on: ubuntu-latest
+    outputs:
+      folders: ${{ steps.find-rxconfig.outputs.folders }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Find folders with rxconfig.py
+        id: find-rxconfig
+        run: |
+          FOLDERS=$(find . -maxdepth 2 -type f -name "rxconfig.py" | xargs dirname | sed 's|^\./||' | jq -R -s -c 'split("\n")[:-1]')
+          echo "folders=$FOLDERS" >> $GITHUB_OUTPUT
+          echo "Found folders: $FOLDERS"
+
+  check-export:
+    needs: find-folders
+    strategy:
+      matrix:
+        folder: ${{ fromJson(needs.find-folders.outputs.folders) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: 3.12
+          activate-environment: true
+      - name: Install dependencies
+        working-directory: ${{ matrix.folder }}
+        run: uv pip install -r requirements.txt
+      - name: Run export
+        working-directory: ${{ matrix.folder }}
+        run: uv run reflex export
