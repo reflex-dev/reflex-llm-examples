@@ -1,5 +1,5 @@
 reflex>=0.7.11
-ollama~=0.4.5
+ollama
 llama_index
 llama-index-embeddings-huggingface
 llama-index-llms-ollama

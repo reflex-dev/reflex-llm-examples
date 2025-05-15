@@ -1,3 +1,3 @@
-embedchain==0.1.126
 reflex==0.7.11
-ollama~=0.4.5
+embedchain
+ollama

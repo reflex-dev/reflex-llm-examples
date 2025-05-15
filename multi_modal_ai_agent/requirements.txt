@@ -1,4 +1,4 @@
-reflex
-phidata==2.7.2
-google-generativeai==0.8.3
+reflex==0.7.11
+phidata
+google-generativeai
 duckduckgo-search
