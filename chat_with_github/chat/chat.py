@@ -6,7 +6,6 @@ import asyncio
 import os
 from embedchain import App
 from embedchain.loaders.github import GithubLoader
-import asyncio
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 

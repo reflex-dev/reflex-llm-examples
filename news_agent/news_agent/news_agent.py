@@ -3,7 +3,6 @@ from duckduckgo_search import DDGS
 from swarm import Swarm, Agent
 from datetime import datetime
 from dotenv import load_dotenv
-import os
 import asyncio
 
 # Load environment variables
@@ -14,22 +13,24 @@ load_dotenv()
 MODEL = "llama3.2"
 client = Swarm()
 
+
 def fetch_latest_news(topic):
     """Retrieve the latest news articles related to a given topic using DuckDuckGo."""
 
     query = f"{topic} news {datetime.now().strftime('%Y-%m')}"
-    
+
     with DDGS() as search_engine:
         articles = search_engine.text(query, max_results=3)
-        
+
         if articles:
             formatted_results = "\n\n".join(
-                f"Title: {article['title']}\nURL: {article['href']}\nSummary: {article['body']}" 
+                f"Title: {article['title']}\nURL: {article['href']}\nSummary: {article['body']}"
                 for article in articles
             )
             return formatted_results
-        
+
         return f"No news articles found on the topic: {topic}."
+
 
 # Create specialized agents
 search_agent = Agent(
@@ -41,7 +42,7 @@ search_agent = Agent(
     3. Presenting the raw search results in a clear and organized manner.
     """,
     functions=[fetch_latest_news],
-    model=MODEL
+    model=MODEL,
 )
 
 summary_agent = Agent(
@@ -71,13 +72,13 @@ summary_agent = Agent(
 
     **IMPORTANT NOTE:** Deliver the content as polished news analysis only. Avoid labels, introductions, or meta-comments. Begin directly with the story, ensuring neutrality and factual accuracy throughout.
     """,
-    model=MODEL
+    model=MODEL,
 )
-
 
 
 class State(rx.State):
     """Manage the application state."""
+
     topic: str = "AI Agents"
     raw_news: str = ""
     final_summary: str = ""
@@ -89,12 +90,11 @@ class State(rx.State):
         """Asynchronous news processing workflow using Swarm agents"""
         # Reset previous state
         async with self:
-
             self.is_loading = True
             self.error_message = ""
             self.raw_news = ""
             self.final_summary = ""
-            
+
             yield
             await asyncio.sleep(1)
 
@@ -102,15 +102,22 @@ class State(rx.State):
             # Search news using search agent
             search_response = client.run(
                 agent=search_agent,
-                messages=[{"role": "user", "content": f"Find recent news about {self.topic}"}]
+                messages=[
+                    {"role": "user", "content": f"Find recent news about {self.topic}"}
+                ],
             )
             async with self:
                 self.raw_news = search_response.messages[-1]["content"]
-            
+
             # Synthesize and Generate summary using summary agent
             summary_response = client.run(
                 agent=summary_agent,
-                messages=[{"role": "user", "content": f"Synthesize these news articles and summarize the synthesis:\n{self.raw_news}"}]
+                messages=[
+                    {
+                        "role": "user",
+                        "content": f"Synthesize these news articles and summarize the synthesis:\n{self.raw_news}",
+                    }
+                ],
             )
 
             async with self:
@@ -118,7 +125,6 @@ class State(rx.State):
                 self.is_loading = False
 
         except Exception as e:
-
             async with self:
                 self.error_message = f"An error occurred: {str(e)}"
                 self.is_loading = False
@@ -126,6 +132,7 @@ class State(rx.State):
     def update_topic(self, topic: str):
         """Update the search topic"""
         self.topic = topic
+
 
 def news_page() -> rx.Component:
     """Render the main news processing page"""
@@ -136,10 +143,10 @@ def news_page() -> rx.Component:
                 placeholder="Enter the news topic",
                 value=State.topic,
                 on_change=State.update_topic,
-                width="300px"
+                width="300px",
             ),
             rx.button(
-                "Process News", 
+                "Process News",
                 on_click=State.process_news,
                 color_scheme="blue",
                 loading=State.is_loading,
@@ -149,29 +156,29 @@ def news_page() -> rx.Component:
             flex_direction="column",
             gap="1rem",
         ),
-
         # Results Section
         rx.cond(
             State.final_summary != "",
             rx.vstack(
                 rx.heading("📝 News Summary", size="4"),
                 rx.markdown(State.final_summary),
-                rx.button("Copy the Summary", on_click=[rx.set_clipboard(State.final_summary), rx.toast.info("Summary copied")]),
+                rx.button(
+                    "Copy the Summary",
+                    on_click=[
+                        rx.set_clipboard(State.final_summary),
+                        rx.toast.info("Summary copied"),
+                    ],
+                ),
                 spacing="4",
-                width="100%"
-            )
+                width="100%",
+            ),
         ),
-
         spacing="4",
         max_width="800px",
         margin="auto",
-        padding="20px"
+        padding="20px",
     )
 
-app = rx.App(
-    theme=rx.theme(
-        appearance="light",
-        accent_color="blue"
-    )
-)
+
+app = rx.App(theme=rx.theme(appearance="light", accent_color="blue"))
 app.add_page(news_page, route="/")

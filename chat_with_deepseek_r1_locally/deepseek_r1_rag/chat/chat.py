@@ -1,6 +1,7 @@
 import reflex as rx
 from chat.components.chat import State, chat, action_bar, sidebar
 
+
 def index() -> rx.Component:
     """The main app."""
     return rx.box(

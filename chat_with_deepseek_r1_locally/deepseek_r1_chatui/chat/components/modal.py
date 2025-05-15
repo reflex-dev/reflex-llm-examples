@@ -1,6 +1,7 @@
 import reflex as rx
 from chat.state import State
 
+
 def modal() -> rx.Component:
     """A modal to create a new chat."""
     return rx.cond(

@@ -5,14 +5,12 @@ import tempfile
 import base64
 from pathlib import Path
 import asyncio
-import os
 import time
 
 from agno.agent import Agent
-from agno.document import Document
 from agno.document.reader.pdf_reader import PDFReader
 from agno.utils.log import logger
-from agno.agent import Agent, AgentMemory
+from agno.agent import AgentMemory
 from agno.embedder.google import GeminiEmbedder
 from agno.knowledge import AgentKnowledge
 from agno.memory.db.postgres import PgMemoryDb
@@ -23,9 +21,9 @@ from agno.vectordb.pgvector import PgVector
 
 import traceback
 
-from typing import Optional
 
 db_url = "postgresql+psycopg://ai:ai@localhost:5532/ai"
+
 
 def get_agentic_rag_agent(
     model_id: str = "gemini-2.0-flash",
@@ -34,16 +32,13 @@ def get_agentic_rag_agent(
     debug_mode: bool = True,
 ) -> Agent:
     """Get an Agentic RAG Agent with Memory optimized for Deepseek and PDFs."""
-    
+
     # Initialize Deepseek model
-    model = Gemini(id=model_id) 
+    model = Gemini(id=model_id)
 
     # Define persistent memory for chat history
     memory = AgentMemory(
-        db=PgMemoryDb(
-            table_name="pdf_agent_memory",
-            db_url=db_url
-        ),
+        db=PgMemoryDb(table_name="pdf_agent_memory", db_url=db_url),
         create_user_memories=False,
         create_session_summary=False,
     )
@@ -57,10 +52,9 @@ def get_agentic_rag_agent(
             embedder=GeminiEmbedder(),
         ),
         num_documents=4,  # Optimal for PDF chunking
-        document_processor=PDFReader(chunk_size=1000
-            ),
-            batch_size=32,
-            parallel_processing=True
+        document_processor=PDFReader(chunk_size=1000),
+        batch_size=32,
+        parallel_processing=True,
     )
 
     # Create the PDF-focused Agent
@@ -69,10 +63,7 @@ def get_agentic_rag_agent(
         session_id=session_id,
         user_id=user_id,
         model=model,
-        storage=PostgresAgentStorage(
-            table_name="pdf_agent_sessions",
-            db_url=db_url
-        ),
+        storage=PostgresAgentStorage(table_name="pdf_agent_sessions", db_url=db_url),
         memory=memory,
         knowledge=knowledge_base,
         description="You are a helpful Agent called 'Agentic RAG' and your goal is to assist the user in the best way possible.",
@@ -123,10 +114,10 @@ def get_agentic_rag_agent(
 
 # Styles
 message_style = dict(
-    display="inline-block", 
-    padding="1em", 
+    display="inline-block",
+    padding="1em",
     border_radius="8px",
-    max_width=["30em", "30em", "50em", "50em", "50em", "50em"]
+    max_width=["30em", "30em", "50em", "50em", "50em", "50em"],
 )
 
 SIDEBAR_STYLE = dict(
@@ -148,14 +139,18 @@ UPLOAD_BUTTON_STYLE = dict(
     _hover={"bg": rx.color("mauve", 3)},
 )
 
+
 @dataclass
 class QA:
     """A question and answer pair."""
+
     question: str
     answer: str
 
+
 class LoadingIcon(rx.Component):
     """A custom loading icon component."""
+
     library = "react-loading-icons"
     tag = "SpinningCircles"
     stroke: rx.Var[str]
@@ -169,11 +164,13 @@ class LoadingIcon(rx.Component):
     def get_event_triggers(self) -> dict:
         return {"on_change": lambda status: [status]}
 
+
 loading_icon = LoadingIcon.create
 
 
 class State(rx.State):
     """The app state."""
+
     chats: List[List[QA]] = [[]]
     base64_pdf: str = ""
     uploading: bool = False
@@ -193,7 +190,7 @@ class State(rx.State):
         exclude = {"_temp_dir"}
         json_encoders = {
             Path: lambda v: str(v),
-            tempfile.TemporaryDirectory: lambda v: None
+            tempfile.TemporaryDirectory: lambda v: None,
         }
 
     def _create_agent(self) -> Agent:
@@ -202,12 +199,12 @@ class State(rx.State):
             # Generate a consistent session ID based on current chat
             if not self._session_id:
                 self._session_id = f"session_{int(time.time())}"
-            
+
             return get_agentic_rag_agent(
                 model_id="gemini-2.0-flash",
                 session_id=self._session_id,
                 user_id=None,
-                debug_mode=True
+                debug_mode=True,
             )
         except Exception as e:
             logger.error(f"Agent creation error: {str(e)}")
@@ -225,7 +222,7 @@ class State(rx.State):
 
             file = files[0]
             upload_data = await file.read()
-            
+
             # Create persistent temp directory
             if self._temp_dir is None:
                 self._temp_dir = Path(tempfile.mkdtemp())
@@ -255,7 +252,7 @@ class State(rx.State):
                 return
 
             # Store base64 for preview
-            base64_pdf = base64.b64encode(upload_data).decode('utf-8')
+            base64_pdf = base64.b64encode(upload_data).decode("utf-8")
             self.base64_pdf = base64_pdf
             self.knowledge_base_files.append(file.filename)
 
@@ -265,7 +262,7 @@ class State(rx.State):
         finally:
             self.uploading = False
             yield
-    
+
     @rx.event(background=True)
     async def process_question(self, form_data: dict):
         """Process a question using streaming responses"""
@@ -273,7 +270,7 @@ class State(rx.State):
             return
 
         question = form_data["question"]
-        
+
         async with self:
             self.processing = True
             self.chats[self.current_chat].append(QA(question=question, answer=""))
@@ -291,7 +288,9 @@ class State(rx.State):
                     stream_response = agent.run(question, stream=True)
                     for chunk in stream_response:
                         if chunk.content:
-                            asyncio.run_coroutine_threadsafe(queue.put(chunk.content), loop)
+                            asyncio.run_coroutine_threadsafe(
+                                queue.put(chunk.content), loop
+                            )
                     asyncio.run_coroutine_threadsafe(queue.put(None), loop)
                 except Exception as e:
                     error_msg = f"Error: {str(e)}"
@@ -308,7 +307,7 @@ class State(rx.State):
                 if isinstance(chunk, str) and chunk.startswith("Error: "):
                     answer_content = chunk
                     break
-                
+
                 answer_content += chunk
                 async with self:
                     self.chats[self.current_chat][-1].answer = answer_content
@@ -326,7 +325,6 @@ class State(rx.State):
             async with self:
                 self.processing = False
                 yield
-        
 
     def clear_knowledge_base(self):
         """Clear knowledge base and reset state"""
@@ -334,7 +332,7 @@ class State(rx.State):
             # Create temporary agent to clear vector store
             agent = self._create_agent()
             agent.knowledge.vector_db.delete()
-            
+
             # Reset state
             self.loaded_files.clear()
             self.knowledge_base_files.clear()
@@ -344,11 +342,12 @@ class State(rx.State):
             self.upload_status = "Knowledge base cleared"
         except Exception as e:
             self.upload_status = f"Error clearing knowledge base: {str(e)}"
-        
+
     def create_new_chat(self):
         """Create a new chat"""
         self.chats.append([])
         self.current_chat = len(self.chats) - 1
+
 
 def pdf_preview() -> rx.Component:
     return rx.box(
@@ -356,14 +355,14 @@ def pdf_preview() -> rx.Component:
         rx.cond(
             State.base64_pdf != "",
             rx.html(
-                f'''
+                f"""
                 <iframe 
                     src="data:application/pdf;base64,{State.base64_pdf}"
                     width="100%" 
                     height="600px"
                     style="border: none; border-radius: 8px;">
                 </iframe>
-                '''
+                """
             ),
             rx.text("No PDF uploaded yet", color="red"),
         ),
@@ -372,6 +371,7 @@ def pdf_preview() -> rx.Component:
         border_radius="md",
         overflow="hidden",
     )
+
 
 def message(qa: QA) -> rx.Component:
     return rx.box(
@@ -398,12 +398,10 @@ def message(qa: QA) -> rx.Component:
         width="100%",
     )
 
+
 def chat() -> rx.Component:
     return rx.vstack(
-        rx.box(
-            rx.foreach(State.chats[State.current_chat], message),
-            width="100%"
-        ),
+        rx.box(rx.foreach(State.chats[State.current_chat], message), width="100%"),
         py="8",
         flex="1",
         width="100%",
@@ -413,6 +411,7 @@ def chat() -> rx.Component:
         overflow_y="auto",
         padding_bottom="5em",
     )
+
 
 def action_bar() -> rx.Component:
     return rx.box(
@@ -460,6 +459,7 @@ def action_bar() -> rx.Component:
         background_color=rx.color("mauve", 2),
         width="100%",
     )
+
 
 def sidebar() -> rx.Component:
     return rx.box(
@@ -509,11 +509,7 @@ def sidebar() -> rx.Component:
                     width="100%",
                 ),
             ),
-            rx.text(
-                State.upload_status,
-                color=rx.color("mauve", 11),
-                font_size="sm"
-            ),
+            rx.text(State.upload_status, color=rx.color("mauve", 11), font_size="sm"),
             align_items="stretch",
             height="100%",
         ),

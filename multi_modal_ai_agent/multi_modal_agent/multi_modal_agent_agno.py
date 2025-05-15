@@ -3,12 +3,12 @@ import google.generativeai as genai
 from agno.agent import Agent
 from agno.models.google import Gemini
 from agno.tools.duckduckgo import DuckDuckGoTools
-import time
 import asyncio
 
 
 class State(rx.State):
     """State for the multimodal AI agent application."""
+
     processing: bool = False
     upload_status: str = ""
     result: str = ""
@@ -20,14 +20,14 @@ class State(rx.State):
         """Handle video file upload."""
         if not files:
             return
-            
+
         try:
             file = files[0]
             upload_data = await file.read()
-            
+
             filename = file.filename
             outfile = rx.get_upload_dir() / filename
-            
+
             # Save the file
             with outfile.open("wb") as file_object:
                 file_object.write(upload_data)
@@ -35,11 +35,11 @@ class State(rx.State):
             self.video_filename = filename
             self.video = outfile
             self.upload_status = "Video uploaded successfully!"
-            
+
         except Exception as e:
             self.upload_status = f"Error uploading video: {str(e)}"
 
-    @rx.event(background=True)        
+    @rx.event(background=True)
     async def analyze_video(self):
         """Process video and answer question using AI agent."""
         if not self.question:
@@ -50,7 +50,7 @@ class State(rx.State):
             self.processing = True
             yield
             await asyncio.sleep(1)
-            
+
         try:
             agent = Agent(
                 name="Multimodal Video Analyst",
@@ -58,39 +58,39 @@ class State(rx.State):
                 tools=[DuckDuckGoTools()],
                 markdown=True,
             )
-            
+
             video_file = genai.upload_file(str(self.video))
             while video_file.state.name == "PROCESSING":
                 await asyncio.sleep(2)
                 # time.sleep(2)
                 video_file = genai.get_file(video_file.name)
-                
+
             prompt = f"""
             First analyze this video and then answer the following question using both
             the video analysis and web research: {self.question}
             Provide a comprehensive response focusing on practical, actionable information.
             """
-            
+
             result = agent.run(prompt, videos=[video_file])
 
             async with self:
                 self.result = result.content
                 self.processing = False
-            
+
         except Exception as e:
             async with self:
                 self.processing = False
                 self.result = f"An error occurred: {str(e)}"
 
-    
+
 color = "rgb(107,99,246)"
+
 
 def index():
     return rx.container(
         rx.vstack(
             # Header section
             rx.heading("Multimodal AI Agent 🕵️‍♀️ 💬", size="8", mb="6"),
-            
             # Upload section
             rx.vstack(
                 rx.upload(
@@ -99,7 +99,7 @@ def index():
                             "Select a Video File",
                             color=color,
                             bg="white",
-                            border=f"1px solid {color}"
+                            border=f"1px solid {color}",
                         ),
                         rx.text("Drag and drop or click to select"),
                     ),
@@ -107,21 +107,20 @@ def index():
                     max_files=1,
                     border="1px dashed",
                     padding="20px",
-                    id="upload1"
+                    id="upload1",
                 ),
                 rx.cond(
-                        rx.selected_files("upload1"),
-                        rx.text(rx.selected_files("upload1")[0]),
-                        rx.text(""),
-                    ),
+                    rx.selected_files("upload1"),
+                    rx.text(rx.selected_files("upload1")[0]),
+                    rx.text(""),
+                ),
                 rx.button(
                     "Upload",
-                    on_click=State.handle_upload(rx.upload_files(upload_id="upload1"))
+                    on_click=State.handle_upload(rx.upload_files(upload_id="upload1")),
                 ),
                 rx.text(State.upload_status),
                 spacing="4",
             ),
-            
             # Video and Analysis section
             rx.cond(
                 State.video_filename != "",
@@ -161,7 +160,7 @@ def index():
         ),
         max_width="600px",
         margin="auto",
-        padding="40px"
+        padding="40px",
     )
 
 

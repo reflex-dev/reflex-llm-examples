@@ -1,7 +1,6 @@
 import reflex as rx
-from typing import List, Optional
+from typing import List
 from dataclasses import dataclass
-import time
 import asyncio
 from textwrap import dedent
 
@@ -9,16 +8,20 @@ from agno.agent import Agent
 from agno.models.google import Gemini
 from agno.tools.yfinance import YFinanceTools
 
+
 # Data Models
 @dataclass
 class QA:
     """A question and answer pair."""
+
     question: str
     answer: str
+
 
 # Custom Loading Icon
 class LoadingIcon(rx.Component):
     """A custom loading icon component."""
+
     library = "react-loading-icons"
     tag = "SpinningCircles"
     stroke: rx.Var[str]
@@ -32,14 +35,15 @@ class LoadingIcon(rx.Component):
     def get_event_triggers(self) -> dict:
         return {"on_change": lambda status: [status]}
 
+
 loading_icon = LoadingIcon.create
 
 # Styles
 message_style = dict(
-    display="inline-block", 
-    padding="1em", 
+    display="inline-block",
+    padding="1em",
     border_radius="8px",
-    max_width=["30em", "30em", "50em", "50em", "50em", "50em"]
+    max_width=["30em", "30em", "50em", "50em", "50em", "50em"],
 )
 
 SIDEBAR_STYLE = dict(
@@ -69,9 +73,11 @@ REMOVE_ICON_STYLE = {
     "margin_right": "2",
 }
 
+
 # Application State
 class State(rx.State):
     """The app state."""
+
     chats: List[List[QA]] = [[]]
     current_chat: int = 0
     processing: bool = False
@@ -136,7 +142,7 @@ class State(rx.State):
             return
 
         question = form_data["question"]
-        
+
         async with self:
             self.processing = True
             self.chats[self.current_chat].append(QA(question=question, answer=""))
@@ -144,12 +150,14 @@ class State(rx.State):
 
         try:
             agent = self._create_agent()
-            response = agent.run(question, stream=True) 
+            response = agent.run(question, stream=True)
 
             async with self:
                 answer_content = ""
                 for chunk in response:  # Process each chunk of the response
-                    if hasattr(chunk, "content"):  # Check if the chunk has a `content` attribute
+                    if hasattr(
+                        chunk, "content"
+                    ):  # Check if the chunk has a `content` attribute
                         answer_content += chunk.content
                     else:
                         answer_content += str(chunk)
@@ -158,7 +166,7 @@ class State(rx.State):
                     self.chats[self.current_chat][-1].answer = answer_content
                     self.chats = self.chats
                     yield
-                    asyncio.sleep(0.05)  
+                    asyncio.sleep(0.05)
 
         except Exception as e:
             answer_content = f"Error processing question: {str(e)}"
@@ -179,11 +187,12 @@ class State(rx.State):
         """Remove a stock from the watchlist"""
         if symbol in self.watchlist:
             self.watchlist.remove(symbol)
-    
+
     def create_new_chat(self):
         """Create a new chat"""
         self.chats.append([])
         self.current_chat = len(self.chats) - 1
+
 
 # UI Components
 def message(qa: QA) -> rx.Component:
@@ -211,12 +220,10 @@ def message(qa: QA) -> rx.Component:
         width="100%",
     )
 
+
 def chat() -> rx.Component:
     return rx.vstack(
-        rx.box(
-            rx.foreach(State.chats[State.current_chat], message),
-            width="100%"
-        ),
+        rx.box(rx.foreach(State.chats[State.current_chat], message), width="100%"),
         py="8",
         flex="1",
         width="100%",
@@ -226,6 +233,7 @@ def chat() -> rx.Component:
         overflow_y="auto",
         padding_bottom="5em",
     )
+
 
 def action_bar() -> rx.Component:
     return rx.box(
@@ -275,6 +283,7 @@ def action_bar() -> rx.Component:
         width="100%",
     )
 
+
 def sidebar() -> rx.Component:
     return rx.box(
         rx.vstack(
@@ -288,7 +297,7 @@ def sidebar() -> rx.Component:
             rx.foreach(
                 State.watchlist,
                 lambda symbol: rx.hstack(
-                     rx.text(
+                    rx.text(
                         "×",  # Using × symbol as remove icon
                         on_click=lambda: State.remove_from_watchlist(symbol),
                         **REMOVE_ICON_STYLE,
@@ -296,7 +305,9 @@ def sidebar() -> rx.Component:
                     rx.text(symbol, font_size="sm"),
                     rx.button(
                         "Analyze",
-                        on_click=lambda: State.process_question({"question": f"Analyze {symbol}'s performance"}),
+                        on_click=lambda: State.process_question(
+                            {"question": f"Analyze {symbol}'s performance"}
+                        ),
                         size="2",
                         **STOCK_BUTTON_STYLE,
                     ),

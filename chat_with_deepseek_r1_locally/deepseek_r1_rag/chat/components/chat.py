@@ -5,7 +5,6 @@ import tempfile
 import base64
 from pathlib import Path
 import asyncio
-import os
 
 from llama_index.core import VectorStoreIndex, Settings, SimpleDirectoryReader
 from llama_index.llms.ollama import Ollama
@@ -14,10 +13,10 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
 # Styles remain the same
 message_style = dict(
-    display="inline-block", 
-    padding="1em", 
+    display="inline-block",
+    padding="1em",
     border_radius="8px",
-    max_width=["30em", "30em", "50em", "50em", "50em", "50em"]
+    max_width=["30em", "30em", "50em", "50em", "50em", "50em"],
 )
 
 SIDEBAR_STYLE = dict(
@@ -39,14 +38,18 @@ UPLOAD_BUTTON_STYLE = dict(
     _hover={"bg": rx.color("mauve", 3)},
 )
 
+
 @dataclass
 class QA:
     """A question and answer pair."""
+
     question: str
     answer: str
 
+
 class LoadingIcon(rx.Component):
     """A custom loading icon component."""
+
     library = "react-loading-icons"
     tag = "SpinningCircles"
     stroke: rx.Var[str]
@@ -60,10 +63,13 @@ class LoadingIcon(rx.Component):
     def get_event_triggers(self) -> dict:
         return {"on_change": lambda status: [status]}
 
+
 loading_icon = LoadingIcon.create
+
 
 class State(rx.State):
     """The app state."""
+
     chats: List[List[QA]] = [[]]
     base64_pdf: str = ""
     uploading: bool = False
@@ -82,28 +88,25 @@ class State(rx.State):
         if self._query_engine is None and self._temp_dir:
             # Setup LLM
             llm = Ollama(model="deepseek-r1:1.5b", request_timeout=120.0)
-            
+
             # Setup embedding model
             embed_model = HuggingFaceEmbedding(
-                model_name="BAAI/bge-large-en-v1.5",
-                trust_remote_code=True
+                model_name="BAAI/bge-large-en-v1.5", trust_remote_code=True
             )
-            
+
             # Configure settings
             Settings.embed_model = embed_model
             Settings.llm = llm
 
             # Load documents
             loader = SimpleDirectoryReader(
-                input_dir=self._temp_dir,
-                required_exts=[".pdf"],
-                recursive=True
+                input_dir=self._temp_dir, required_exts=[".pdf"], recursive=True
             )
             docs = loader.load_data()
 
             # Create index and query engine
             index = VectorStoreIndex.from_documents(docs, show_progress=True)
-            
+
             # Setup streaming query engine with custom prompt
             qa_prompt_tmpl_str = (
                 "Context information is below.\n"
@@ -115,7 +118,7 @@ class State(rx.State):
                 "Answer: "
             )
             qa_prompt_tmpl = PromptTemplate(qa_prompt_tmpl_str)
-            
+
             self._query_engine = index.as_query_engine(streaming=True)
             self._query_engine.update_prompts(
                 {"response_synthesizer:text_qa_template": qa_prompt_tmpl}
@@ -128,7 +131,7 @@ class State(rx.State):
             return
 
         question = form_data["question"]
-        
+
         async with self:
             self.processing = True
             self.chats[self.current_chat].append(QA(question=question, answer=""))
@@ -163,11 +166,11 @@ class State(rx.State):
 
         file = files[0]
         upload_data = await file.read()
-        
+
         # Create temporary directory if not exists
         if self._temp_dir is None:
             self._temp_dir = tempfile.mkdtemp()
-            
+
         outfile = Path(self._temp_dir) / file.filename
         self.pdf_filename = file.filename
 
@@ -175,12 +178,12 @@ class State(rx.State):
             file_object.write(upload_data)
 
         # Base64 encode the PDF content
-        base64_pdf = base64.b64encode(upload_data).decode('utf-8')
+        base64_pdf = base64.b64encode(upload_data).decode("utf-8")
         self.base64_pdf = base64_pdf
 
         # Setup LlamaIndex
         self.setup_llamaindex()
-        
+
         self.knowledge_base_files.append(self.pdf_filename)
         self.upload_status = f"Added {self.pdf_filename} to knowledge base"
 
@@ -192,6 +195,7 @@ class State(rx.State):
         self.chats.append([])
         self.current_chat = len(self.chats) - 1
 
+
 def pdf_preview() -> rx.Component:
     """PDF preview component."""
     return rx.box(
@@ -199,14 +203,14 @@ def pdf_preview() -> rx.Component:
         rx.cond(
             State.base64_pdf != "",
             rx.html(
-                f'''
+                f"""
                 <iframe 
                     src="data:application/pdf;base64,{State.base64_pdf}"
                     width="100%" 
                     height="600px"
                     style="border: none; border-radius: 8px;">
                 </iframe>
-                '''
+                """
             ),
             rx.text("No PDF uploaded yet", color="red"),
         ),
@@ -215,6 +219,7 @@ def pdf_preview() -> rx.Component:
         border_radius="md",
         overflow="hidden",
     )
+
 
 def message(qa: QA) -> rx.Component:
     """A single question/answer message."""
@@ -242,13 +247,11 @@ def message(qa: QA) -> rx.Component:
         width="100%",
     )
 
+
 def chat() -> rx.Component:
     """List all the messages in a conversation."""
     return rx.vstack(
-        rx.box(
-            rx.foreach(State.chats[State.current_chat], message),
-            width="100%"
-        ),
+        rx.box(rx.foreach(State.chats[State.current_chat], message), width="100%"),
         py="8",
         flex="1",
         width="100%",
@@ -258,6 +261,7 @@ def chat() -> rx.Component:
         overflow_y="auto",
         padding_bottom="5em",
     )
+
 
 def action_bar() -> rx.Component:
     """The action bar to send a new message."""
@@ -307,6 +311,7 @@ def action_bar() -> rx.Component:
         width="100%",
     )
 
+
 def sidebar() -> rx.Component:
     """The sidebar component."""
     return rx.box(
@@ -350,11 +355,7 @@ def sidebar() -> rx.Component:
                     width="100%",
                 ),
             ),
-            rx.text(
-                State.upload_status,
-                color=rx.color("mauve", 11),
-                font_size="sm"
-            ),
+            rx.text(State.upload_status, color=rx.color("mauve", 11), font_size="sm"),
             align_items="stretch",
             height="100%",
         ),

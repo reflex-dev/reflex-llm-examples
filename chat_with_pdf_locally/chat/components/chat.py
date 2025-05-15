@@ -3,17 +3,16 @@ from typing import List
 from dataclasses import dataclass
 import tempfile
 import base64
-from pathlib import Path
 import asyncio
 
 from embedchain import App
 
 # Styles
 message_style = dict(
-    display="inline-block", 
-    padding="1em", 
+    display="inline-block",
+    padding="1em",
     border_radius="8px",
-    max_width=["30em", "30em", "50em", "50em", "50em", "50em"]
+    max_width=["30em", "30em", "50em", "50em", "50em", "50em"],
 )
 
 SIDEBAR_STYLE = dict(
@@ -35,11 +34,14 @@ UPLOAD_BUTTON_STYLE = dict(
     _hover={"bg": rx.color("mauve", 3)},
 )
 
+
 @dataclass
 class QA:
     """A question and answer pair."""
+
     question: str
     answer: str
+
 
 class LoadingIcon(rx.Component):
     """A custom loading icon component."""
@@ -59,6 +61,7 @@ class LoadingIcon(rx.Component):
 
 
 loading_icon = LoadingIcon.create
+
 
 class State(rx.State):
     """The app state."""
@@ -83,16 +86,16 @@ class State(rx.State):
                         "max_tokens": 250,
                         "temperature": 0.5,
                         "stream": True,
-                        "base_url": 'http://localhost:11434'
-                    }
+                        "base_url": "http://localhost:11434",
+                    },
                 },
                 "vectordb": {"provider": "chroma", "config": {"dir": self.db_path}},
                 "embedder": {
                     "provider": "ollama",
                     "config": {
                         "model": "llama3.2:latest",
-                        "base_url": 'http://localhost:11434'
-                    }
+                        "base_url": "http://localhost:11434",
+                    },
                 },
             }
         )
@@ -104,7 +107,7 @@ class State(rx.State):
             return
 
         question = form_data["question"]
-        
+
         async with self:
             self.processing = True
             self.chats[self.current_chat].append(QA(question=question, answer=""))
@@ -140,7 +143,7 @@ class State(rx.State):
             file_object.write(upload_data)
 
         # Base64 encode the PDF content
-        base64_pdf = base64.b64encode(upload_data).decode('utf-8')
+        base64_pdf = base64.b64encode(upload_data).decode("utf-8")
 
         self.base64_pdf = base64_pdf
 
@@ -157,6 +160,7 @@ class State(rx.State):
         self.chats.append([])
         self.current_chat = len(self.chats) - 1
 
+
 def pdf_preview() -> rx.Component:
     """PDF preview component."""
     return rx.box(
@@ -164,14 +168,14 @@ def pdf_preview() -> rx.Component:
         rx.cond(
             State.base64_pdf != "",
             rx.html(
-                f'''
+                f"""
                 <iframe 
                     src="data:application/pdf;base64,{State.base64_pdf}"
                     width="100%" 
                     height="600px"
                     style="border: none; border-radius: 8px;">
                 </iframe>
-                '''
+                """
             ),
             rx.text("No PDF uploaded yet", color="red"),
         ),
@@ -180,7 +184,6 @@ def pdf_preview() -> rx.Component:
         border_radius="md",
         overflow="hidden",
     )
-
 
 
 def message(qa: QA) -> rx.Component:
@@ -209,13 +212,11 @@ def message(qa: QA) -> rx.Component:
         width="100%",
     )
 
+
 def chat() -> rx.Component:
     """List all the messages in a conversation."""
     return rx.vstack(
-        rx.box(
-            rx.foreach(State.chats[State.current_chat], message),
-            width="100%"
-        ),
+        rx.box(rx.foreach(State.chats[State.current_chat], message), width="100%"),
         py="8",
         flex="1",
         width="100%",
@@ -225,6 +226,7 @@ def chat() -> rx.Component:
         overflow="hidden",
         padding_bottom="5em",
     )
+
 
 def action_bar() -> rx.Component:
     """The action bar to send a new message."""
@@ -274,6 +276,7 @@ def action_bar() -> rx.Component:
         width="100%",
     )
 
+
 def sidebar() -> rx.Component:
     """The sidebar component."""
     return rx.box(
@@ -317,11 +320,7 @@ def sidebar() -> rx.Component:
                     width="100%",
                 ),
             ),
-            rx.text(
-                State.upload_status,
-                color=rx.color("mauve", 11),
-                font_size="sm"
-            ),
+            rx.text(State.upload_status, color=rx.color("mauve", 11), font_size="sm"),
             align_items="stretch",
             height="100%",
         ),

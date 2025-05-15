@@ -77,7 +77,6 @@ class State(rx.State):
 
     async def send_prompt(self):
         if self.prompt:
-
             self.is_generating = True
 
             yield
