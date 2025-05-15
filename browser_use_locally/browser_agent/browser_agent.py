@@ -1,6 +1,5 @@
 import reflex as rx
 from langchain_ollama import ChatOllama
-import browser_use
 from browser_use import Agent
 import asyncio
 
@@ -19,7 +18,7 @@ class State(rx.State):
             self.output = ""
             yield
             await asyncio.sleep(1)
-        
+
         result = await self.run_search()
         async with self:
             self.output = result.final_result()

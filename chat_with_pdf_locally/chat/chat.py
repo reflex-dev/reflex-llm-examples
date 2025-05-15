@@ -1,6 +1,7 @@
 import reflex as rx
 from chat.components.chat import State, chat, action_bar, sidebar
 
+
 def index() -> rx.Component:
     """The main app."""
     return rx.box(
@@ -29,6 +30,7 @@ def index() -> rx.Component:
         height="100vh",
         background_color=rx.color("mauve", 1),
     )
+
 
 app = rx.App()
 app.add_page(index)

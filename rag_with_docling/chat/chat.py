@@ -4,27 +4,36 @@ import tempfile
 import gc
 import pandas as pd
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Optional
 
 import asyncio
 
-from llama_index.core import Settings, VectorStoreIndex, SimpleDirectoryReader, PromptTemplate
+from llama_index.core import (
+    Settings,
+    VectorStoreIndex,
+    SimpleDirectoryReader,
+    PromptTemplate,
+)
 from llama_index.llms.ollama import Ollama
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.readers.docling import DoclingReader
 from llama_index.core.node_parser import MarkdownNodeParser
 import reflex as rx
 
+
 # Data Models
 @dataclass
 class QA:
     """A question and answer pair."""
+
     question: str
     answer: str
+
 
 # Custom Loading Icon
 class LoadingIcon(rx.Component):
     """A custom loading icon component."""
+
     library = "react-loading-icons"
     tag = "SpinningCircles"
     stroke: rx.Var[str]
@@ -38,14 +47,15 @@ class LoadingIcon(rx.Component):
     def get_event_triggers(self) -> dict:
         return {"on_change": lambda status: [status]}
 
+
 loading_icon = LoadingIcon.create
 
 # Styles
 message_style = dict(
-    display="inline-block", 
-    padding="1em", 
+    display="inline-block",
+    padding="1em",
     border_radius="8px",
-    max_width=["30em", "30em", "50em", "50em", "50em", "50em"]
+    max_width=["30em", "30em", "50em", "50em", "50em", "50em"],
 )
 
 SIDEBAR_STYLE = dict(
@@ -66,6 +76,7 @@ UPLOAD_BUTTON_STYLE = dict(
     margin_y="1em",
     _hover={"bg": rx.color("mauve", 3)},
 )
+
 
 # Application State
 class State(rx.State):
@@ -90,49 +101,47 @@ class State(rx.State):
             self.upload_status = "No file selected, Please select a file to continue"
             return
             yield
-        
+
         self.uploading = True
         yield
-        
+
         try:
             file = files[0]
             upload_data = await file.read()
             file_name = file.filename
-            
+
             with tempfile.TemporaryDirectory() as temp_dir:
                 file_path = os.path.join(temp_dir, file_name)
                 with open(file_path, "wb") as f:
                     f.write(upload_data)
-                
+
                 file_key = f"{self.session_id}-{file_name}"
-                
+
                 if file_key not in self.file_cache:
-                    
                     reader = DoclingReader()
                     loader = SimpleDirectoryReader(
                         input_dir=temp_dir,
                         file_extractor={".xlsx": reader},
                     )
                     docs = loader.load_data()
-                    
+
                     llm = self.load_llm()
                     embed_model = HuggingFaceEmbedding(
-                        model_name="BAAI/bge-large-en-v1.5", 
-                        trust_remote_code=True
+                        model_name="BAAI/bge-large-en-v1.5", trust_remote_code=True
                     )
-                    
+
                     Settings.embed_model = embed_model
                     node_parser = MarkdownNodeParser()
                     index = VectorStoreIndex.from_documents(
-                        documents=docs, 
-                        transformations=[node_parser], 
-                        show_progress=True
+                        documents=docs,
+                        transformations=[node_parser],
+                        show_progress=True,
                     )
-                    
+
                     Settings.llm = llm
                     query_engine = index.as_query_engine(streaming=True)
-                    
-                    qa_prompt_tmpl_str = ("""
+
+                    qa_prompt_tmpl_str = """
                     Context information is below.
                     ---------------------
                     {context_str}
@@ -142,16 +151,18 @@ class State(rx.State):
                     incase case you don't know the answer say 'I don't know!'.
                     Query: {query_str}
                     Answer: 
-                    """)
+                    """
                     qa_prompt_tmpl = PromptTemplate(qa_prompt_tmpl_str)
                     query_engine.update_prompts(
                         {"response_synthesizer:text_qa_template": qa_prompt_tmpl}
                     )
-                    
+
                     self.file_cache[file_key] = query_engine
                     self._query_engine = query_engine
                     df = pd.read_excel(file_path)
-                    self.preview_columns = [{"field": col, "header": col} for col in df.columns]
+                    self.preview_columns = [
+                        {"field": col, "header": col} for col in df.columns
+                    ]
                     self.preview_df = df.to_dict(orient="records")
                     self.upload_status = f"Uploaded {file_name} successfully"
                     self.uploading = False
@@ -159,7 +170,7 @@ class State(rx.State):
 
                 else:
                     self._query_engine = self.file_cache[file_key]
-                
+
                 yield
         except Exception as e:
             self.uploading = False
@@ -179,21 +190,21 @@ class State(rx.State):
     async def process_query(self, form_data: dict):
         if self.processing or not form_data.get("question") or not self._query_engine:
             return
-        
+
         question = form_data.get("question")
         if not question:
             return
-        
+
         async with self:
             self.processing = True
             self.chats[self.current_chat].append(QA(question=question, answer=""))
             yield
             await asyncio.sleep(0.1)
-        
+
         try:
             streaming_response = self._query_engine.query(question)
             answer = ""
-            
+
             async with self:
                 for chunk in streaming_response.response_gen:
                     answer += chunk
@@ -201,20 +212,23 @@ class State(rx.State):
                     self.chats = self.chats
                     yield
                     await asyncio.sleep(0.05)
-                
+
                 self.processing = False
                 yield
 
         except Exception as e:
             async with self:
-                self.chats[self.current_chat][-1].answer = f"Error processing query: {str(e)}"
+                self.chats[self.current_chat][
+                    -1
+                ].answer = f"Error processing query: {str(e)}"
                 self.processing = False
                 yield
+
 
 def excel_preview() -> rx.Component:
     if State.preview_df is None:
         return rx.box()
-    
+
     return rx.box(
         rx.heading("Excel Preview", size="4"),
         rx.data_table(
@@ -230,6 +244,7 @@ def excel_preview() -> rx.Component:
         margin_top="-2em",
         margin_bottom="2em",
     )
+
 
 def message(qa: QA) -> rx.Component:
     return rx.box(
@@ -255,6 +270,7 @@ def message(qa: QA) -> rx.Component:
         ),
         width="100%",
     )
+
 
 def action_bar() -> rx.Component:
     return rx.box(
@@ -325,7 +341,10 @@ def sidebar() -> rx.Component:
                 border=f"1px dashed {rx.color('mauve', 6)}",
                 padding="2em",
                 border_radius="md",
-                accept={".xls": "application/vnd.ms-excel", ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
+                accept={
+                    ".xls": "application/vnd.ms-excel",
+                    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                },
                 max_files=1,
                 multiple=False,
             ),
@@ -335,23 +354,17 @@ def sidebar() -> rx.Component:
                 loading=State.uploading,
                 **UPLOAD_BUTTON_STYLE,
             ),
-            rx.text(
-                State.upload_status,
-                color=rx.color("mauve", 11),
-                font_size="sm"
-            ),
+            rx.text(State.upload_status, color=rx.color("mauve", 11), font_size="sm"),
             align_items="stretch",
             height="100%",
         ),
         **SIDEBAR_STYLE,
     )
 
+
 def chat() -> rx.Component:
     return rx.vstack(
-        rx.box(
-            rx.foreach(State.chats[State.current_chat], message),
-            width="100%"
-        ),
+        rx.box(rx.foreach(State.chats[State.current_chat], message), width="100%"),
         py="8",
         flex="1",
         width="100%",
@@ -362,6 +375,7 @@ def chat() -> rx.Component:
         padding_bottom="5em",
     )
 
+
 def index() -> rx.Component:
     """The main app."""
     return rx.box(
@@ -369,7 +383,9 @@ def index() -> rx.Component:
         rx.box(
             rx.vstack(
                 rx.hstack(
-                    rx.heading("Chat with Excel using DeepSeek-R1 💬", margin_right="4em"),
+                    rx.heading(
+                        "Chat with Excel using DeepSeek-R1 💬", margin_right="4em"
+                    ),
                     rx.button(
                         "New Chat",
                         on_click=State.create_new_chat,
@@ -390,6 +406,7 @@ def index() -> rx.Component:
         height="100vh",
         background_color=rx.color("mauve", 1),
     )
+
 
 app = rx.App()
 app.add_page(index)

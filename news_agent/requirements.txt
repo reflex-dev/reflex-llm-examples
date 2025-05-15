@@ -1,3 +1,4 @@
-reflex==0.6.6.post2
+reflex==0.7.11
 git+https://github.com/openai/swarm.git
 duckduckgo-search
+dotenv

@@ -1,4 +1,6 @@
+reflex==0.7.11
 agno
 google-generativeai
-reflex
 duckduckgo-search
+phidata
+pillow
