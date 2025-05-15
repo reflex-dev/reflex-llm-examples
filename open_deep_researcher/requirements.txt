@@ -1,2 +1,3 @@
 reflex
 google-generativeai
+aiohttp

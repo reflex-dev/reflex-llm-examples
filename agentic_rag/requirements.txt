@@ -8,3 +8,4 @@ pgvector
 psycopg[binary]
 pypdf
 sqlalchemy
+google-genai
