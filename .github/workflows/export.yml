@@ -40,4 +40,4 @@ jobs:
         run: uv pip install -r requirements.txt
       - name: Run export
         working-directory: ${{ matrix.folder }}
-        run: uv run reflex export
+        run: uv run reflex export --env prod
